@@ -26,3 +26,9 @@ jobs:
           **/node_modules/**
           .env
           vendor/**
+
+    - name: Run Migrations
+      run: |
+        if [ -f artisan ]; then
+          php artisan migrate --force
+        fi
