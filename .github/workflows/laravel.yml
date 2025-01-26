@@ -16,7 +16,7 @@ jobs:
         server: ftp.westbank.com.ng
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        server-dir: /vtu/
+        server-dir: /
         exclude: |
           **/.git*
           **/.git*/**
