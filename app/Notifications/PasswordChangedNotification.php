@@ -7,18 +7,18 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class VerifyEmailNotification extends Notification
+class PasswordChangedNotification extends Notification 
 {
     use Queueable;
 
-    private string $token;
+    private $user;
 
     /**
      * Create a new notification instance.
      */
-    public function __construct(string $token)
+    public function __construct($user)
     {
-        $this->token = $token;
+        $this->user = $user;
     }
 
     /**
@@ -36,13 +36,13 @@ class VerifyEmailNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $url = config('app.url') . '/verify-email/' . $this->token;
-
         return (new MailMessage)
-            ->subject('Verify Your Email Address')
-            ->line('Here is your token to verify your email address:')
-            ->line($this->token)
-            ->line('If you did not create an account, no further action is required.');
+        ->subject('Your Password Has Been Changed')
+        ->greeting('Hello ' . ($this->user->fullname ?? 'User') . ',')
+        ->line('We wanted to let you know that your account password was recently changed.')
+        ->line('If you did not make this change, please contact our support team immediately.')
+        ->action('Contact Support', url('/support'))
+        ->line('Thank you for using our application!');
     }
 
     /**

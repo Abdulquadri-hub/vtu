@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Auth;
 
 use App\Models\User;
 use Illuminate\Http\Request;
+use App\Services\Auth\HashService;
+use App\Services\Auth\TokenService;
 use App\Traits\ApiResponseHandler;
-use App\Services\ValidationService;
-use App\Contracts\Auth\HashServiceInterface;
-use App\Contracts\Auth\TokenServiceInterface;
-use App\Contracts\Auth\UserRepositoryInterface;
-use App\Contracts\Auth\NotificationServiceInterface;
+use App\Services\Auth\ValidationService;
+use App\Repositories\UserRepository;
+use App\Services\Notifications\NotificationService;
 use App\Contracts\Auth\AuthenticationServiceInterface;
 
 class AuthenticationService implements AuthenticationServiceInterface {
@@ -21,14 +21,16 @@ class AuthenticationService implements AuthenticationServiceInterface {
     private $hashService;
     private $authenticationService;
     private  $notificationService;
+    private  $validateService;
 
-    public function __construct(UserRepositoryInterface $userRepository,
-        TokenServiceInterface $tokenService, HashServiceInterface $hashService, AuthenticationServiceInterface $authenticationService, NotificationServiceInterface $notificationService) {
+    public function __construct(UserRepository $userRepository,
+        TokenService $tokenService, HashService $hashService, NotificationService $notificationService,
+        ValidationService $validateService) {
         $this->userRepository = $userRepository;
         $this->tokenService = $tokenService;
         $this->hashService = $hashService;
-        $this->authenticationService = $authenticationService;
         $this->notificationService = $notificationService;
+        $this->validateService = $validateService;
 
     }
 
@@ -36,7 +38,11 @@ class AuthenticationService implements AuthenticationServiceInterface {
 
         try {
 
-            ValidationService::validateRegistrationData($userData);
+            $validation = $this->validateService->validateRegistrationData($userData);
+
+            if ($validation !== true) {
+                return $validation;
+            }
 
             if($this->userRepository->findByEmail($userData['email']) || $this->userRepository->findByPhone($userData['phone']) ){
                 return ApiResponseHandler::errorResponse("User email or phone already registered");
@@ -60,7 +66,11 @@ class AuthenticationService implements AuthenticationServiceInterface {
 
     public function login(array $credentials)
     {
-        ValidationService::validateLoginCredentials($credentials);
+        $validation = $this->validateService->validateLoginCredentials($credentials);
+
+        if ($validation !== true) {
+            return $validation;
+        }
 
         $user = $this->userRepository->findByEmail($credentials['email']);
 
@@ -81,7 +91,7 @@ class AuthenticationService implements AuthenticationServiceInterface {
 
     }
 
-    public function logout(Request $request)
+    public function logout($request)
     {
         $this->tokenService->revokeCurrentToken($request);
     }
@@ -97,11 +107,17 @@ class AuthenticationService implements AuthenticationServiceInterface {
         $token = $this->tokenService->generatePasswordResetToken($user);
 
         $this->notificationService->sendPasswordReset($user, $token);
+
+        return ApiResponseHandler::successResponse([], "Password reset token sent successfully.");
     }
 
-    public function resetPassword(array $data): bool
+    public function resetPassword(array $data)
     {
-        ValidationService::validateResetPasswordData($data);
+        $validation = $this->validateService->validateResetPasswordData($data);
+
+        if ($validation !== true) {
+            return $validation;
+        }
 
         $user = $this->tokenService->verifyPasswordResetToken($data['token']);
 
@@ -116,10 +132,10 @@ class AuthenticationService implements AuthenticationServiceInterface {
 
         $this->notificationService->sendPasswordChangeNotification($user);
 
-        return true;
+        return ApiResponseHandler::successResponse([], "Password was reset successfully.");
     }
 
-    public function verifyEmail(string $token): bool
+    public function verifyEmail(string $token)
     {
         $user = $this->tokenService->verifyEmailToken($token);
 
@@ -127,20 +143,24 @@ class AuthenticationService implements AuthenticationServiceInterface {
             return ApiResponseHandler::errorResponse("Invalid or expired token");
         }
 
-        $this->userRepository->update($user, ['is_verified' => true]);
+        $this->userRepository->update($user, ['is_verified' => true, 'email_verified_at' => now()]);
 
-        return true;
+        return $this->successResponse("Email verification was successfull");
     }
 
-    public function verifyUserPin($request) : bool{
+    public function verifyUserPin($request){
 
         $user = $request->user();
 
-        if (!$user || !$this->hashService->verify($request['pin'], $user->pin)) {
-            return false;
+        if(!$request->has('pin')){
+            return ApiResponseHandler::validationErrorResponse([], "User Pin is required");
         }
 
-        return true;
+        if (!$this->hashService->verify($request['pin'], $user->pin)) {
+            return ApiResponseHandler::errorResponse("invalid pin");
+        }
+
+        return ApiResponseHandler::successResponse($user, "User pin verification was successful");
     }
 
     public function userVerification(array $verificationData){

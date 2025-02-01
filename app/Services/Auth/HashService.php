@@ -1,11 +1,8 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Auth;
 
-use App\Models\User;
-use App\Traits\ApiResponseHandler;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
 use App\Contracts\Auth\HashServiceInterface;
 
 class HashService implements HashServiceInterface {

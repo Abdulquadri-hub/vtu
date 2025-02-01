@@ -3,7 +3,6 @@
 namespace App\Contracts\Auth;
 
 use App\Models\User;
-use Illuminate\Http\Request;
 
 interface AuthenticationServiceInterface {
 
@@ -11,15 +10,15 @@ interface AuthenticationServiceInterface {
 
     public function login(array $credentials);
 
-    public function logout(Request $request);
+    public function logout($request);
 
     public function forgotPassword(string $email);
 
-    public function resetPassword(array $data): bool;
+    public function resetPassword(array $data);
 
-    public function verifyEmail(string $token): bool;
+    public function verifyEmail(string $token);
 
     public function userVerification(array $verificationData);
 
-    public function verifyUserPin($request): bool;
+    public function verifyUserPin($request);
 }

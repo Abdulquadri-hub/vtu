@@ -18,7 +18,7 @@ class UserRepository implements UserRepositoryInterface {
                 'currency' => 'NGN'
             ]);
 
-            Return $user;
+            return $user;
         });
     }
 

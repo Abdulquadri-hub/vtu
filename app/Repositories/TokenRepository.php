@@ -6,13 +6,13 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use App\Contracts\Auth\TokenRepositoryInterface;
 
-class UserRepository implements TokenRepositoryInterface {
-    
+class TokenRepository implements TokenRepositoryInterface {
+
     public function createEmailVerificationToken(User $user, string $token): void
     {
         DB::table('email_verification_tokens')->insert([
             'user_id' => $user->id,
-            'token' => hash('sha256', $token),
+            'token' =>  $token,
             'expires_at' => now()->addHours(24),
             'created_at' => now()
         ]);
@@ -23,7 +23,7 @@ class UserRepository implements TokenRepositoryInterface {
         DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $user->email],
             [
-                'token' => hash('sha256', $token),
+                'token' => $token,
                 'expires_at' => now()->addHours(1),
                 'created_at' => now()
             ]
@@ -33,7 +33,7 @@ class UserRepository implements TokenRepositoryInterface {
     public function verifyEmailToken(string $token): ?User
     {
         $record = DB::table('email_verification_tokens')
-            ->where('token', hash('sha256', $token))
+            ->where('token', $token)
             ->where('expires_at', '>', now())
             ->first();
 
@@ -51,7 +51,7 @@ class UserRepository implements TokenRepositoryInterface {
     public function verifyPasswordResetToken(string $token): ?User
     {
         $record = DB::table('password_reset_tokens')
-            ->where('token', hash('sha256', $token))
+            ->where('token', $token)
             ->where('expires_at', '>', now())
             ->first();
 

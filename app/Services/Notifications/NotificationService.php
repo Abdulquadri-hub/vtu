@@ -1,11 +1,12 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Notifications;
 
 use App\Models\User;
 use Illuminate\Support\Str;
 use App\Notifications\VerifyEmailNotification;
 use App\Notifications\ResetPasswordNotification;
+use App\Notifications\PasswordChangedNotification;
 use App\Contracts\Auth\NotificationServiceInterface;
 
 class NotificationService implements NotificationServiceInterface
@@ -22,6 +23,6 @@ class NotificationService implements NotificationServiceInterface
 
     public function sendPasswordChangeNotification(User $user): void
     {
-        // $user->notify(new PasswordChangedNotification());
+        $user->notify(new PasswordChangedNotification($user));
     }
 }

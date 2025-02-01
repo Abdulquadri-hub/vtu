@@ -1,18 +1,18 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Auth;
 
 use App\Models\User;
 use Illuminate\Support\Str;
-use App\Contracts\Auth\TokenServiceInterface;
-use App\Contracts\Auth\TokenRepositoryInterface;
 use Illuminate\Http\Request;
+use App\Repositories\TokenRepository;
+use App\Contracts\Auth\TokenServiceInterface;
 
 class TokenService implements TokenServiceInterface {
 
-    private TokenRepositoryInterface $tokenRepository;
+    private TokenRepository $tokenRepository;
 
-    public function __construct(TokenRepositoryInterface $tokenRepository)
+    public function __construct(TokenRepository $tokenRepository)
     {
         $this->tokenRepository = $tokenRepository;
     }
@@ -24,7 +24,7 @@ class TokenService implements TokenServiceInterface {
 
     public function generateEmailVerificationToken(User $user): string
     {
-        $token = Str::random(64);
+        $token = rand(0000,9999);
 
         $this->tokenRepository->createEmailVerificationToken($user, $token);
 
@@ -33,7 +33,7 @@ class TokenService implements TokenServiceInterface {
 
     public function generatePasswordResetToken(User $user): string
     {
-        $token = Str::random(64);
+        $token = rand(0000,9999);
 
         $this->tokenRepository->createPasswordResetToken($user, $token);
 
@@ -50,7 +50,7 @@ class TokenService implements TokenServiceInterface {
         return $this->tokenRepository->verifyPasswordResetToken($token);
     }
 
-    public function revokeCurrentToken(Request $request): void
+    public function revokeCurrentToken($request): void
     {
         $request->user()->currentAccessToken()->delete();
     }
