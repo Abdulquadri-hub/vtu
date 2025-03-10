@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use App\Repositories\TokenRepository;
 use App\Contracts\Auth\TokenServiceInterface;
 
-class TokenService implements TokenServiceInterface {
+class TokenService {
 
     private TokenRepository $tokenRepository;
 

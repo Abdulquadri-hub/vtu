@@ -6,7 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use App\Contracts\Auth\TokenRepositoryInterface;
 
-class TokenRepository implements TokenRepositoryInterface {
+class TokenRepository  {
 
     public function createEmailVerificationToken(User $user, string $token): void
     {

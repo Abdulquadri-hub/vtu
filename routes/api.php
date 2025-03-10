@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\WalletController;
 
 
 Route::get('/', function() {
@@ -26,4 +27,13 @@ Route::controller(AuthController::class)->group(function(){
     Route::get('forgot-password/{email}', 'forgotPassword');
     Route::post('reset-password', 'resetPassword');
     Route::post('verify-user-pin', 'verifyUserPin')->middleware('auth:sanctum');
+});
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::controller(WalletController::class)->prefix('wallet')->group(function() {
+        Route::post('fund', 'initiateFunding');
+        Route::get('verify', 'handleCallback');
+        Route::get('balance', 'getBalance');
+        Route::get('transactions', 'getTransactions');
+    });
 });

@@ -4,16 +4,15 @@ namespace App\Repositories;
 
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use App\Contracts\Auth\UserRepositoryInterface;
 
-class UserRepository implements UserRepositoryInterface {
+class UserRepository {
 
     public function create(array $data): User
     {
         return DB::transaction(function() use ($data) {
             $user = User::create($data);
 
-            $user->wallet([
+            $user->wallet()->create([
                 'balance' => 0,
                 'currency' => 'NGN'
             ]);

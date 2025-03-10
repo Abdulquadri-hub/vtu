@@ -5,7 +5,7 @@ namespace App\Services\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Contracts\Auth\HashServiceInterface;
 
-class HashService implements HashServiceInterface {
+class HashService {
 
     public function make(string $value): string
     {

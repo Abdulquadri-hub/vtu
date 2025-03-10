@@ -21,8 +21,13 @@ class Transaction extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function profitRecord()
+    public function profitRecords()
     {
-        return $this->hasOne(ProfitRecord::class);
+        return $this->hasMany(ProfitRecord::class);
+    }
+
+    public function walletTransactions()
+    {
+        return $this->hasMany(WalletTransaction::class);
     }
 }
