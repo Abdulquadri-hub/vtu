@@ -43,6 +43,6 @@ class UserRepository {
 
     public function updatePassword(User $user, string $password): bool
     {
-        return $user->update(['passeord' => $password]);
+        return $user->update(['password' => $password]);
     }
 }
