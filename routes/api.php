@@ -34,6 +34,7 @@ Route::controller(AuthController::class)->group(function(){
     Route::post('verify-user-pin', 'verifyUserPin')->middleware('auth:sanctum');
 });
 
+
 Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::controller(WalletController::class)->prefix('wallet')->group(function() {
