@@ -163,8 +163,8 @@ class AuthenticationService implements AuthenticationServiceInterface {
         return ApiResponseHandler::successResponse($user, "User pin verification was successful");
     }
 
-    public function userVerification(array $verificationData){
-        return "";
+    public function createProfile(array $data){
+
     }
 
 }

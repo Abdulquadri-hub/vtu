@@ -15,7 +15,7 @@ class MonnifyService
     protected $baseUrl;
     protected $secretKey;
     protected $apiKey;
-    protected $userLiveBaseUrl = true;
+    protected $userLiveBaseUrl = false;
     protected $client;
     protected $authString;
     protected $tokenCacheKey = "monnify_access_token";
@@ -39,17 +39,66 @@ class MonnifyService
 
 
     // wallets
+    public function createWallet(array $data){
+        $response =  $this->makeApiRequest("/api/v1/disbursements/wallet", 'POST', $data);
+        return $response;
+    }
 
+    // Get wallet details
+    public function getWalletDetails($walletReference){
+        $response = $this->makeApiRequest("/api/v1/disbursements/wallet/{$walletReference}", 'GET');
+        return $response;
+    }
+
+    // Get wallet balance
+    public function getWalletBalance($walletReference){
+        $response = $this->makeApiRequest("/api/v1/disbursements/wallet-balance/{$walletReference}", 'GET');
+        return $response;
+    }
+
+    // Reserved account methods
+    public function createReservedAccount(array $data){
+        $response = $this->makeApiRequest("/api/v2/bank-transfer/reserved-accounts", 'POST', $data);
+        return $response;
+    }
+
+    public function getReservedAccountDetails($accountReference){
+        $response = $this->makeApiRequest("/api/v2/bank-transfer/reserved-accounts/{$accountReference}", 'GET');
+        return $response;
+    }
+
+    public function updateReservedAccountName($accountReference, $newName){
+        $data = [
+            'accountName' => $newName
+        ];
+        $response = $this->makeApiRequest("/api/v2/bank-transfer/reserved-accounts/{$accountReference}", 'PUT', $data);
+        return $response;
+    }
+
+    public function deactivateReservedAccount($accountReference){
+        $response = $this->makeApiRequest("/api/v2/bank-transfer/reserved-accounts/{$accountReference}/deactivate", 'PUT');
+        return $response;
+    }
+
+    public function reactivateReservedAccount($accountReference){
+        $response = $this->makeApiRequest("/api/v2/bank-transfer/reserved-accounts/{$accountReference}/activate", 'PUT');
+        return $response;
+    }
+
+    // Handle transactions
+    public function getTransactionsByReference($reference){
+        $response = $this->makeApiRequest("/api/v2/transactions/by-reference/{$reference}", 'GET');
+        return $response;
+    }
 
     //Handle Payments
     public function initiatePayment($data){
-
         $response = $this->makeApiRequest("/api/v1/merchant/transactions/init-transaction", 'POST', $data);
         return $response;
     }
 
     public function verifyPayment($reference){
-        $response = $this->makeApiRequest("/api/v2/merchant/transactions/query", 'GET',  $reference);
+        $response = $this->makeApiRequest("/api/v2/merchant/transactions/query?transactionReference=$reference", 'GET');
         return $response;
     }
 
@@ -57,7 +106,7 @@ class MonnifyService
         if (Cache::has($this->tokenCacheKey)) {
             $tokenData =  Cache::get($this->tokenCacheKey);
 
-            if($tokenData && isset($tokendata['accessToken'], $tokenData['expiresAt'])){
+            if($tokenData && isset($tokenData['accessToken'], $tokenData['expiresAt'])){
                 if ($tokenData['expiresAt'] > now()->timestamp) {
                     return $tokenData['accessToken'];
                 }
@@ -116,5 +165,4 @@ class MonnifyService
             return ApiResponseHandler::errorResponse($e->getMessage(), 500);
         }
     }
-
 }

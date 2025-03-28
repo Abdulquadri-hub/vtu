@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Traits\ApiResponseHandler;
 use App\Http\Controllers\Controller;
 use App\Services\Wallet\WalletService;
+use Illuminate\Support\Facades\Log;
 
 class WalletController extends Controller
 {
@@ -19,26 +20,29 @@ class WalletController extends Controller
 
     public function initiateFunding(Request $request)
     {
-        $validated = $request->validate([
-            'amount' => 'required|numeric|min:100'
-        ]);
-
-        try {
-            $result = $this->walletService->initiateWalletFunding(
-                $request->user(),
-                $validated['amount']
-            );
-
-            return response()->json([
-                'message' => 'Funding initiated successfully',
-                'data' => $result
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to initiate funding',
-                'error' => $e->getMessage()
-            ], 400);
+        if(function_exists('memory_get_usage')){
+            log::info('memory usage before initialization '. memory_get_usage());
         }
+        // $validated = $request->validate([
+        //     'amount' => 'required|numeric|min:100'
+        // ]);
+
+        // try {
+        //     $result = $this->walletService->initiateWalletFunding(
+        //         $request->user(),
+        //         $validated['amount']
+        //     );
+
+        //     return response()->json([
+        //         'message' => 'Funding initiated successfully',
+        //         'data' => $result
+        //     ]);
+        // } catch (\Exception $e) {
+        //     return response()->json([
+        //         'message' => 'Failed to initiate funding',
+        //         'error' => $e->getMessage()
+        //     ], 400);
+        // }
     }
 
     public function handleCallback(Request $request)

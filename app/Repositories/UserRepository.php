@@ -16,7 +16,7 @@ class UserRepository {
                 'balance' => 0,
                 'currency' => 'NGN'
             ]);
-
+            
             return $user;
         });
     }
@@ -44,5 +44,9 @@ class UserRepository {
     public function updatePassword(User $user, string $password): bool
     {
         return $user->update(['password' => $password]);
+    }
+
+    public function createProfile($data){
+
     }
 }

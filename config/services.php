@@ -41,6 +41,9 @@ return [
         'webhook_secret' => env('MONNIFY_WEBHOOK_SECRET'),
         'live_base_url' => env('MONNIFY_LIVE_BASE_URL'),
         'sandbox_base_url' => env('MONNIFY_SANDBOX_BASE_URL'),
+        'contract_code' => env('MONNIFY_CONTRACT_CODE'),
+        'contract_name' => env('MONNIFY_CONTRACT_NAME'),
+        'wallet_account_number' => env('MONNIFY_WALLET_ACCOUNT_NUMBER'),
     ]
 
 ];

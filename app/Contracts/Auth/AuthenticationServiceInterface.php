@@ -18,7 +18,7 @@ interface AuthenticationServiceInterface {
 
     public function verifyEmail(string $token);
 
-    public function userVerification(array $verificationData);
+    // public function userVerification(array $verificationData);
 
     public function verifyUserPin($request);
 }
