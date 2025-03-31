@@ -5,40 +5,28 @@ namespace App\Services\Wallet;
 use App\Models\User;
 use App\Traits\ApiResponseHandler;
 use Illuminate\Support\Facades\DB;
-use App\Repositories\WalletRepository;
-use App\Services\Payment\MonnifyService;
-use App\Services\Wallet\ReservedAccountService;
-use App\Repositories\TransactionRepository;
-use App\Repositories\ReservedAccountRepository;
-use App\Services\ProfileService;
+use Illuminate\Contracts\Container\Container;
+
+use function PHPSTORM_META\type;
 
 class WalletService
 {
+    use ApiResponseHandler;
+
+    private $container;
+    private $merchantCode = 544657543870;
+    private $contractCode;
+
+    // Lazily loaded dependencies
     private $paymentProvider;
     private $walletRepository;
     private $transactionRepository;
-    private $reservedAccountRepository;
     private $reservedAccountService;
-    private $merchantCode = 544657543870;
-    private $contractCode;
     private $profileService;
 
-    use ApiResponseHandler;
-
-    public function __construct(
-        MonnifyService $paymentProvider,
-        ReservedAccountService $reservedAccountService,
-        ProfileService $profileService,
-        WalletRepository $walletRepository,
-        TransactionRepository $transactionRepository,
-        ReservedAccountRepository $reservedAccountRepository
-    ){
-        $this->paymentProvider = $paymentProvider;
-        $this->reservedAccountService = $reservedAccountService;
-        $this->walletRepository = $walletRepository;
-        $this->profileService = $profileService;
-        $this->transactionRepository = $transactionRepository;
-        $this->reservedAccountRepository = $reservedAccountRepository;
+    public function __construct(Container $container)
+    {
+        $this->container = $container;
         $this->contractCode = config('services.monnify.contract_code');
     }
 
@@ -62,8 +50,7 @@ class WalletService
                     "dateOfBirth" => $customerBvnDob
                 ]
             ];
-
-            $createWalletResponse = $this->paymentProvider->createWallet($walletData);
+            $createWalletResponse = $this->getPaymentProvider()->createWallet($walletData);
             return $createWalletResponse;
 
             if (!isset($createWalletResponse['requestSuccessful']) || !$createWalletResponse['requestSuccessful']) {
@@ -114,7 +101,7 @@ class WalletService
                 ];
             }
 
-            $accountResult = $this->reservedAccountService->createReservedAccount($user);
+            $accountResult = $this->getReservedAccountService()->createReservedAccount($user);
 
             if (isset($accountResult['error'])) {
                 DB::rollBack();
@@ -123,7 +110,7 @@ class WalletService
                 ];
             }
 
-            $this->walletRepository->update($walletResult['wallet'], [
+            $this->getWalletRepository()->update($walletResult['wallet'], [
                 'reserved_account_id' => $accountResult['reserved_account']->id
             ]);
 
@@ -150,9 +137,17 @@ class WalletService
     public function initiateWalletFunding(User $user, float $amount): array
     {
         try {
-            $reference = 'REF_' . uniqid() . '_' . time();
 
-            $transaction = $this->transactionRepository->create([
+            if(!$user->has_profile){
+                return [
+                    "success" => false,
+                    "message" => "Complete your profile"
+                ];
+            }
+
+            $reference = 'TXNREF_' . uniqid() . '_' . time();
+
+            $transaction = $this->getTransactionRepository()->create([
                 'user_id' => $user->id,
                 'type' => 'wallet_funding',
                 'amount' => $amount,
@@ -165,19 +160,18 @@ class WalletService
                 'amount' => $amount .".00",
                 'paymentReference' => $reference,
                 'currencyCode' => "NGN",
-                'contractCode' => $this->merchantCode,
+                'contractCode' => $this->contractCode,
                 'metaData' => [
                     'user_id' => $user->id,
                     'type' => 'wallet_funding'
                 ]
             ];
 
-            $paymentResponse = $this->paymentProvider->initiatePayment($paymentData);
+            $paymentResponse = $this->getPaymentProvider()->initiatePayment($paymentData);
 
             return [
                 'payment_response' => $paymentResponse,
                 'reference' => $reference,
-                'transaction' => $transaction
             ];
         } catch (\Throwable $th) {
             throw $th;
@@ -186,42 +180,58 @@ class WalletService
 
     public function processWalletFunding(string $reference)
     {
-        $response = $this->paymentProvider->verifyPayment($reference);
-
-        if (!$response['requestSuccessful'] && $response['responseMessage'] !== 'success') {
-            return [
-                "error" =>"Payment verification failed"
-            ];
-        }
-
-        DB::beginTransaction();
         try {
-            $transaction = $this->transactionRepository->find($reference);
+            DB::beginTransaction();
 
-            if (!$transaction || $transaction->status !== 'pending') {
-                return ApiResponseHandler::errorResponse("Invalid transaction");
+            $response = $this->getPaymentProvider()->verifyPayment($reference);
+
+
+            if (!$response['requestSuccessful'] || $response['responseMessage'] !== 'success') {
+                return [
+                    "success" => false,
+                    "message" => $response['message'] ?? "Payment verification failed"
+                ];
             }
 
-            // Update transaction
-            $this->transactionRepository->update($transaction, [
-                'status' => 'completed',
+            $transaction = $this->getTransactionRepository()->find($reference);
+
+            if (!$transaction || $transaction->status !== 'pending') {
+                return [
+                    "success" => false,
+                    "message" => "Invalid transaction"
+                ];
+            }
+
+
+            if ($transaction->status === strtolower($response['responseBody']['paymentStatus'])) {
+                DB::rollBack();
+                return [
+                    "success" => false,
+                    "message" => "Transaction already processed"
+                ];
+            }
+
+            $this->getTransactionRepository()->update($transaction, [
+                'status' => strtolower($response['responseBody']['paymentStatus']),
                 'provider_reference' => $response['responseBody']['transactionReference'],
                 'meta_data' => json_encode($response['responseBody'])
             ]);
 
-            // Credit user wallet
-            $this->creditWallet(
-                $transaction->user,
-                $transaction->amount,
-                "Wallet funding via " . $response['responseBody']['paymentMethod']
-            );
+            if (strtolower($response['responseBody']['paymentStatus']) === 'paid') {
+                $this->creditWallet(
+                    $transaction->user,
+                    $response['responseBody']['amountPaid'],
+                    "Wallet funding via " . $response['responseBody']['paymentMethod']
+                );
+            }
 
             DB::commit();
-            return true;
+            return $response;
         } catch (\Exception $e) {
             DB::rollBack();
             return [
-                "error" =>$e->getMessage()
+                "success" => false,
+                "message" => $e->getMessage()
             ];
         }
     }
@@ -230,79 +240,71 @@ class WalletService
     {
         DB::beginTransaction();
         try {
-            $wallet = $this->walletRepository->findByUser($user);
+            $wallet = $this->getWalletRepository()->findByUser($user);
 
-            if ($wallet->balance < $amount) {
+            $previousBalance = $wallet->balance;
+
+            if ($previousBalance < $amount) {
                 return [
-                    "error" =>"Insufficient wallet balance"
+                    "error" => "Insufficient wallet balance"
                 ];
             }
 
-            $this->walletRepository->update($wallet, [
-                'balance' => $wallet->balance - $amount
+            $newBalance = $previousBalance - $amount;
+
+            $this->getWalletRepository()->update($wallet, [
+                'balance' => $newBalance
             ]);
 
-            $this->walletRepository->createTransaction($wallet, [
+            $this->getWalletRepository()->createTransaction($wallet, [
                 'type' => 'debit',
                 'amount' => $amount,
                 'description' => $description,
-                'previous_balance' => $wallet->balance,
-                'current_balance' => $wallet->balance - $amount
+                'previous_balance' => $previousBalance,
+                'current_balance' => $newBalance
             ]);
 
-            $this->profileService->syncAccountDataToProfile($user);
+            $this->getProfileService()->profileService->syncAccountDataToProfile($user);
 
             DB::commit();
             return true;
         } catch (\Exception $e) {
             DB::rollBack();
             return [
-                "error" =>  $e->getMessage()
+                "error" => $e->getMessage()
             ];
         }
     }
 
-    public function creditWallet(User $user, float $amount, string $description)
+    public function creditWallet(User $user, float $amount, string $description = ''): void
     {
-        DB::beginTransaction();
-        try {
-            $wallet = $this->walletRepository->findByUser($user);
+        DB::transaction(function () use ($user, $amount, $description) {
+            $wallet = $user->wallet;
 
-            // Update wallet balance
-            $this->walletRepository->update($wallet, [
-                'balance' => $wallet->balance + $amount
-            ]);
+            $previousBalance = $wallet->balance;
 
-            // Create wallet transaction
-            $this->walletRepository->createTransaction($wallet, [
+            $wallet->balance += $amount;
+            $wallet->save();
+
+            $wallet->transactions()->create([
                 'type' => 'credit',
                 'amount' => $amount,
-                'description' => $description,
-                'previous_balance' => $wallet->balance,
-                'current_balance' => $wallet->balance + $amount
+                'previous_balance' => $previousBalance,
+                'current_balance' => $wallet->balance,
+                'description' => $description ?: 'Wallet funding',
             ]);
-
-            $this->profileService->syncAccountDataToProfile($user);
-
-            DB::commit();
-            return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return [
-                "error" =>  $e->getMessage()
-            ];
-        }
+        });
     }
 
     public function getBalance(User $user): float
     {
-        $wallet = $this->walletRepository->findByUser($user);
+        $wallet = $this->getWalletRepository()->findByUser($user);
         return $wallet->balance;
     }
 
     public function getTransactions(User $user, array $filters = [])
     {
-        return $this->walletRepository->getTransactions($user, $filters);
+        return $this->getWalletRepository()->getTransactions($user, $filters);
     }
 
 
@@ -390,8 +392,48 @@ class WalletService
         ];
 
         // For error simulation:
-        // return [
-        //     "error" => "Service provider unavailable"
-        // ];
+        return [
+            "error" => "Service provider unavailable"
+        ];
+    }
+
+    private function getPaymentProvider()
+    {
+           if (!$this->paymentProvider) {
+               $this->paymentProvider = $this->container->make(\App\Services\Payment\MonnifyService::class);
+           }
+           return $this->paymentProvider;
+    }
+
+    private function getWalletRepository()
+    {
+        if (!$this->walletRepository) {
+            $this->walletRepository = $this->container->make(\App\Repositories\WalletRepository::class);
+        }
+        return $this->walletRepository;
+    }
+
+    private function getTransactionRepository()
+    {
+        if (!$this->transactionRepository) {
+            $this->transactionRepository = $this->container->make(\App\Repositories\TransactionRepository::class);
+        }
+        return $this->transactionRepository;
+    }
+
+    private function getReservedAccountService()
+    {
+        if (!$this->reservedAccountService) {
+            $this->reservedAccountService = $this->container->make(\App\Services\Wallet\ReservedAccountService::class);
+        }
+        return $this->reservedAccountService;
+    }
+
+    private function getProfileService()
+    {
+        if (!$this->profileService) {
+            $this->profileService = $this->container->make(\App\Services\ProfileService::class);
+        }
+        return $this->profileService;
     }
 }

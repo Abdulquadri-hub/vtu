@@ -12,16 +12,9 @@ class TransactionRepository
     public function create(array $data): Transaction
     {
         return DB::transaction(function () use ($data) {
-
             $data['reference'] = $data['reference'] ?? $this->generateReference();
 
             $transaction = Transaction::create($data);
-
-            if (in_array($data['type'], ['wallet_funding', 'transfer', 'bill_payment'])) {
-                $this->recordWalletTransaction($transaction);
-            }
-
-            // Log transaction creation
 
             return $transaction;
         });
@@ -30,7 +23,7 @@ class TransactionRepository
     public function find(string $reference): ?Transaction
     {
         return Transaction::where('reference', $reference)
-            ->with(['user', 'profitRecord'])
+            ->with(['user', 'profitRecords'])
             ->first();
     }
 
@@ -171,6 +164,14 @@ class TransactionRepository
     private function recordWalletTransaction(Transaction $transaction): void
     {
         $wallet = $transaction->user->wallet;
+
+        $existingWalletTransaction = $wallet->transactions()
+            ->where('transaction_id', $transaction->id)
+            ->first();
+
+        if ($existingWalletTransaction) {
+            return;
+        }
 
         $wallet->transactions()->create([
             'type' => $this->getWalletTransactionType($transaction->type),

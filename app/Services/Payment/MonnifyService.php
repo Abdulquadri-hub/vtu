@@ -85,20 +85,18 @@ class MonnifyService
         return $response;
     }
 
-    // Handle transactions
     public function getTransactionsByReference($reference){
         $response = $this->makeApiRequest("/api/v2/transactions/by-reference/{$reference}", 'GET');
         return $response;
     }
 
-    //Handle Payments
     public function initiatePayment($data){
         $response = $this->makeApiRequest("/api/v1/merchant/transactions/init-transaction", 'POST', $data);
         return $response;
     }
 
     public function verifyPayment($reference){
-        $response = $this->makeApiRequest("/api/v2/merchant/transactions/query?transactionReference=$reference", 'GET');
+        $response = $this->makeApiRequest("/api/v2/merchant/transactions/query?paymentReference=$reference", 'GET');
         return $response;
     }
 
@@ -150,7 +148,6 @@ class MonnifyService
 
     protected function makeApiRequest($endpoint, $method = 'GET', $body = []){
         $accessToken = $this->getAccessToken();
-
         try {
             $response = $this->client->request($method, $endpoint, [
                 'headers' => [
@@ -162,7 +159,10 @@ class MonnifyService
 
             return json_decode($response->getBody()->getContents(), true);
         } catch (\Exception $e) {
-            return ApiResponseHandler::errorResponse($e->getMessage(), 500);
+            return [
+                "success" => false,
+                "message" => $e->getMessage(),
+            ];
         }
     }
 }

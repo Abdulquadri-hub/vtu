@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Log;
 class WalletController extends Controller
 {
 
+    use ApiResponseHandler;
+
     private $walletService;
 
     public function __construct(WalletService $walletService)
@@ -20,45 +22,37 @@ class WalletController extends Controller
 
     public function initiateFunding(Request $request)
     {
-        if(function_exists('memory_get_usage')){
-            log::info('memory usage before initialization '. memory_get_usage());
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:100'
+        ]);
+
+        try {
+            $result = $this->walletService->initiateWalletFunding(
+                $request->user(),
+                $validated['amount']
+            );
+
+            return response()->json([
+                'message' => 'Funding initiated successfully',
+                'data' => $result
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to initiate funding',
+                'error' => $e->getMessage()
+            ], 400);
         }
-        // $validated = $request->validate([
-        //     'amount' => 'required|numeric|min:100'
-        // ]);
-
-        // try {
-        //     $result = $this->walletService->initiateWalletFunding(
-        //         $request->user(),
-        //         $validated['amount']
-        //     );
-
-        //     return response()->json([
-        //         'message' => 'Funding initiated successfully',
-        //         'data' => $result
-        //     ]);
-        // } catch (\Exception $e) {
-        //     return response()->json([
-        //         'message' => 'Failed to initiate funding',
-        //         'error' => $e->getMessage()
-        //     ], 400);
-        // }
     }
 
     public function handleCallback(Request $request)
     {
         try {
             $reference = $request->input('reference');
-            $this->walletService->processWalletFunding($reference);
-
-            return response()->json([
-                'message' => 'Funding completed successfully'
-            ]);
+            $response = $this->walletService->processWalletFunding($reference);
+            return ApiResponseHandler::successResponse($response);
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to process funding',
-                'error' => $e->getMessage()
-            ], 400);
+            return ApiResponseHandler::errorResponse('Failed to process funding: '. $e->getMessage(), 500);
         }
     }
 
