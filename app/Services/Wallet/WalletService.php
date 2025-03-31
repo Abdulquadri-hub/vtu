@@ -28,7 +28,7 @@ class WalletService
     {
         $this->container = $container;
         $this->contractCode = config('services.monnify.contract_code');
-        
+
     }
 
     public function createWalletViaMonnify(User $user)
@@ -51,6 +51,7 @@ class WalletService
                     "dateOfBirth" => $customerBvnDob
                 ]
             ];
+            
             $createWalletResponse = $this->getPaymentProvider()->createWallet($walletData);
             return $createWalletResponse;
 
