@@ -28,6 +28,7 @@ class WalletService
     {
         $this->container = $container;
         $this->contractCode = config('services.monnify.contract_code');
+        
     }
 
     public function createWalletViaMonnify(User $user)
