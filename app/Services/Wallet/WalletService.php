@@ -34,6 +34,7 @@ class WalletService
     public function createWalletViaMonnify(User $user)
     {
         try {
+
             $walletReference = 'WAL_' . uniqid() . '_' . time();
             $walletName = $user->name . " Wallet - " . $walletReference;
             $customerName = $user->name;
@@ -51,9 +52,8 @@ class WalletService
                     "dateOfBirth" => $customerBvnDob
                 ]
             ];
-            
+
             $createWalletResponse = $this->getPaymentProvider()->createWallet($walletData);
-            return $createWalletResponse;
 
             if (!isset($createWalletResponse['requestSuccessful']) || !$createWalletResponse['requestSuccessful']) {
                 return [
@@ -94,12 +94,21 @@ class WalletService
         DB::beginTransaction();
         try {
 
+            if(!$user->has_profile){
+                return [
+                    "success" => false,
+                    "message" => "Complete your profile"
+                ];
+            }
+
+
             $walletResult = $this->createWalletViaMonnify($user);
 
             if (isset($walletResult['error'])) {
                 DB::rollBack();
                 return [
-                    "error" => $walletResult['error']
+                    "success" => false,
+                    "message" => $walletResult['error']
                 ];
             }
 
@@ -108,7 +117,8 @@ class WalletService
             if (isset($accountResult['error'])) {
                 DB::rollBack();
                 return [
-                    "error" => $accountResult['error']
+                    "success" => false,
+                    "message" => $accountResult['error']
                 ];
             }
 
@@ -140,12 +150,12 @@ class WalletService
     {
         try {
 
-            if(!$user->has_profile){
-                return [
-                    "success" => false,
-                    "message" => "Complete your profile"
-                ];
-            }
+            // if(!$user->has_profile){
+            //     return [
+            //         "success" => false,
+            //         "message" => "Complete your profile"
+            //     ];
+            // }
 
             $reference = 'TXNREF_' . uniqid() . '_' . time();
 

@@ -57,4 +57,18 @@ class ValidationService {
         return true;
     }
 
+    public function validateProfile(array $credentials){
+        $validator = Validator::make($credentials, [
+            'bvn' => 'nullable|string',
+            'nin' => 'nullable|string',
+            'bvn_dob' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            $errors = $validator->errors()->toArray();
+            return $this->validationErrorResponse($errors);
+        }
+
+        return true;
+    }
 }

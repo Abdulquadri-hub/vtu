@@ -43,4 +43,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('balance', 'getBalance');
         Route::get('transactions', 'getTransactions');
     });
+
+    Route::controller(ProfileController::class)->prefix('profile')->group(function () {
+        Route::get('', "getProfile");
+        Route::post('create', "create");
+    });
 });

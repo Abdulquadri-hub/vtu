@@ -8,27 +8,37 @@ use App\Services\Wallet\WalletService;
 use App\Repositories\WalletRepository;
 use App\Repositories\ReservedAccountRepository;
 use Illuminate\Support\Facades\DB;
+use App\Services\Auth\ValidationService;
 
 class ProfileService
 {
     protected $walletService;
     protected $walletRepository;
     protected $reservedAccountRepository;
+    protected $validateService;
 
     public function __construct(
         WalletService $walletService,
         WalletRepository $walletRepository,
-        ReservedAccountRepository $reservedAccountRepository
+        ReservedAccountRepository $reservedAccountRepository,
+        ValidationService $validateService
     ) {
         $this->walletService = $walletService;
         $this->walletRepository = $walletRepository;
+        $this->validateService = $validateService;
         $this->reservedAccountRepository = $reservedAccountRepository;
     }
 
-    public function createOrUpdateProfile(User $user, array $data)
+    public function createOrUpdateProfile($user, array $data)
     {
         DB::beginTransaction();
         try {
+
+            $validation = $this->validateService->validateProfile($data);
+
+            if ($validation !== true) {
+                return $validation;
+            }
 
             $profile = Profile::updateOrCreate(
                 ['user_id' => $user->id],
@@ -47,7 +57,7 @@ class ProfileService
                 if (isset($walletResult['error'])) {
                     DB::rollBack();
                     return [
-                        'status' => false,
+                        'success' => false,
                         'message' => $walletResult['error']
                     ];
                 }
@@ -62,14 +72,14 @@ class ProfileService
             DB::commit();
 
             return [
-                'status' => true,
+                'success' => true,
                 'profile' => $profile,
                 'message' => 'Profile updated successfully'
             ];
         } catch (\Exception $e) {
             DB::rollBack();
             return [
-                'status' => false,
+                'success' => false,
                 'message' => 'Failed to update profile: ' . $e->getMessage()
             ];
         }

@@ -2,26 +2,46 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
+use App\Services\ProfileService;
+use App\Traits\ApiResponseHandler;
+use App\Http\Controllers\Controller;
 
 class ProfileController extends Controller
 {
+    private $profileService;
+
+    public function __construct(ProfileService $profileService)
+    {
+        $this->profileService = $profileService;
+    }
+
+    public function create(Request $request){
+        try {
+
+            $result = $this->profileService->createOrUpdateProfile($request->user(), $request->all());
+            if($result['success']){
+                return ApiResponseHandler::successResponse($result);
+            }
+
+            return ApiResponseHandler::errorResponse("Error creating profile",400, $result);
+        } catch (\Throwable $th) {
+            return ApiResponseHandler::errorResponse($th->getMessage());
+        }
+    }
+
     public function getProfile(Request $request)
     {
-        $user = $request->user();
-        $profile = $user->profile;
+        try {
+            $user = $request->user();
+            $profile = $user->profile;
 
-        if (!$profile) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Profile not found'
-            ], 404);
-        }
+            if (!$profile) {
+                return ApiResponseHandler::errorResponse('Profile not found', 404);
+            }
 
-        return response()->json([
-            'status' => true,
-            'data' => [
+            return ApiResponseHandler::successResponse([
                 'user' => [
                     'id' => $user->id,
                     'name' => $user->name,
@@ -38,7 +58,9 @@ class ProfileController extends Controller
                         'bank_name' => $profile->bank_name,
                     ]
                 ]
-            ]
-        ]);
+            ]);
+        } catch (\Throwable $th) {
+            return ApiResponseHandler::errorResponse($th->getMessage());
+        }
     }
 }

@@ -33,15 +33,13 @@ class WalletController extends Controller
                 $validated['amount']
             );
 
-            return response()->json([
-                'message' => 'Funding initiated successfully',
-                'data' => $result
-            ]);
+            if(!$result['success']){
+                return ApiResponseHandler::errorResponse("Error funding wallet", 400, $result);
+            }
+            return ApiResponseHandler::successResponse($result, "Wallet Funded Successfully");
+
         } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to initiate funding',
-                'error' => $e->getMessage()
-            ], 400);
+            return ApiResponseHandler::errorResponse($e->getMessage());
         }
     }
 
