@@ -3,8 +3,9 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\WalletController;
+use App\Http\Controllers\ProfileController;
 
 
 Route::get('/', function() {
@@ -19,10 +20,6 @@ Route::get("unauthorized", function(){
         'message' => "Unauthorized",
     ], 401);
 })->name('unauthorized');
-
-Route::middleware(['auth:sanctum'])->group(function () {
-    Route::post('fund', [WalletController::class, "initiateFunding"]);
-});
 
 Route::controller(AuthController::class)->group(function(){
     Route::post('register', 'register');
@@ -46,6 +43,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::controller(ProfileController::class)->prefix('profile')->group(function () {
         Route::get('', "getProfile");
+        Route::post('create', "create");
+    });
+
+    Route::controller(UserController::class)->prefix('user')->group(function () {
+        Route::get('', "index");
         Route::post('create', "create");
     });
 });
