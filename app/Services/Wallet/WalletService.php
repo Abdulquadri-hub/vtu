@@ -94,12 +94,12 @@ class WalletService
         DB::beginTransaction();
         try {
 
-            if(!$user->has_profile){
-                return [
-                    "success" => false,
-                    "message" => "Complete your profile"
-                ];
-            }
+            // if(!$user->has_profile){
+            //     return [
+            //         "success" => false,
+            //         "message" => "Complete your profile"
+            //     ];
+            // }
 
 
             $walletResult = $this->createWalletViaMonnify($user);
@@ -150,13 +150,6 @@ class WalletService
     {
         try {
 
-            // if(!$user->has_profile){
-            //     return [
-            //         "success" => false,
-            //         "message" => "Complete your profile"
-            //     ];
-            // }
-
             $reference = 'TXNREF_' . uniqid() . '_' . time();
 
             $transaction = $this->getTransactionRepository()->create([
@@ -181,12 +174,19 @@ class WalletService
 
             $paymentResponse = $this->getPaymentProvider()->initiatePayment($paymentData);
 
+            if(!$paymentResponse['success']){
+                return $paymentResponse;
+            }
+            
             return [
                 'payment_response' => $paymentResponse,
                 'reference' => $reference,
             ];
-        } catch (\Throwable $th) {
-            throw $th;
+        } catch (\Exception $e) {
+            return [
+                "success" => false,
+                "message" => $e->getMessage()
+            ];
         }
     }
 
